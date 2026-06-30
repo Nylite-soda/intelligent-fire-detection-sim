@@ -71,7 +71,7 @@ if df is not None and not df.empty:
             st.error("Detector not initialized.")
             st.stop()
             
-        window_size = 32
+        window_size = 64
         step_size = 16 # Step 7: aligned with training distribution
         
         # Display logs

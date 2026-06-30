@@ -75,7 +75,7 @@ def preprocess_dataframe_into_windows(df, window_size=32, step_size=16, wavelet=
     seq_starts = [0] + seq_starts + [len(df)]
     seq_starts = sorted(list(set(seq_starts)))
     
-    feature_cols = [c for c in df.columns if c not in ['CNT', 'Class', 'Fire Alarm']]
+    feature_cols = [c for c in df.columns if c not in ['CNT', 'Class', 'Fire Alarm', 'UTC']]
     
     processed_windows = []
     

@@ -9,3 +9,4 @@ data/raw/*
 logs/
 reports/
 .ipynb_checkpoints/
+data/raw/

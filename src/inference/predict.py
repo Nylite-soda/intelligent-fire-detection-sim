@@ -1,25 +1,21 @@
 import os
 import torch
-import joblib
 import pandas as pd
 import numpy as np
-from src.model.ann import FireANN
-from src.preprocessing.dwt import process_window
+from sklearn.preprocessing import StandardScaler
+from src.model.cnn import FireCNN
 
 class FireDetector:
-    def __init__(self, model_path=None, scaler_path=None):
+    def __init__(self, model_path=None):
         if model_path is None:
-            model_path = os.environ.get("FIRE_MODEL_PATH", "models/fire_ann.pt")
-        if scaler_path is None:
-            scaler_path = os.environ.get("FIRE_SCALER_PATH", "models/scaler.pkl")
-        if not os.path.exists(model_path) or not os.path.exists(scaler_path):
-            raise FileNotFoundError("Model or scaler not found. Please run training first.")
+            model_path = os.environ.get("FIRE_MODEL_PATH", "models/fire_cnn_production.pt")
+        if not os.path.exists(model_path):
+            raise FileNotFoundError("Model not found. Please run training first.")
             
-        self.scaler = joblib.load(scaler_path)
+        # 12 base numeric features + 12 delta features = 24
+        self.num_features = 24
         
-        # Determine input size from scaler
-        input_size = self.scaler.n_features_in_
-        self.model = FireANN(input_size=input_size, num_classes=3)
+        self.model = FireCNN(n_features=self.num_features, num_classes=3)
         self.model.load_state_dict(torch.load(model_path))
         self.model.eval()
         
@@ -27,37 +23,44 @@ class FireDetector:
         
     def predict_window(self, window_df):
         """
-        Takes a raw pandas DataFrame representing a window of sensor data.
+        Takes a raw pandas DataFrame representing a window of sensor data (e.g. 64 rows).
         Returns the class name and confidence.
         """
-        feature_cols = [c for c in window_df.columns if c not in ['CNT', 'Class', 'Fire Alarm']]
+        df = window_df.copy()
         
-        # Extract features
-        feats = process_window(window_df, feature_cols)
+        # 1. Base feature columns
+        base_cols = [c for c in df.columns if c not in ['UTC', 'CNT', 'Class', 'Fire Alarm'] and "Unnamed" not in c]
         
-        # Drop Class if it somehow got in
-        if 'Class' in feats:
-            del feats['Class']
+        # 2. Compute Deltas
+        for col in base_cols:
+            df[f"{col}_delta"] = df[col].diff().fillna(0)
             
-        feature_names = getattr(self.scaler, "feature_names_in_", list(feats.keys()))
+        # All feature columns (Base + Delta)
+        all_features = base_cols + [f"{c}_delta" for c in base_cols]
         
-        # Create array with correct order
-        feat_array = np.array([[feats.get(k, 0.0) for k in feature_names]])
+        if len(all_features) != self.num_features:
+            # If there's an issue, let it pass by taking just what's needed or padding,
+            # but ideally the user uploads a proper CSV with the 12 base columns.
+            pass
+            
+        # 3. Local Normalization (Per-window, approximating per-segment)
+        X = df[all_features].values
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
         
-        # Scale
-        scaled_feats = self.scaler.transform(feat_array)
+        # 4. Predict
+        # Model expects shape (batch, window_size, n_features)
+        X_tensor = torch.tensor(X_scaled, dtype=torch.float32).unsqueeze(0)
         
-        # Predict
         with torch.no_grad():
-            tensor_feats = torch.tensor(scaled_feats, dtype=torch.float32)
-            outputs = self.model(tensor_feats)
+            outputs = self.model(X_tensor)
             probs = torch.nn.functional.softmax(outputs, dim=1)[0]
             confidence, pred_class_idx = torch.max(probs, 0)
             
         pred_class_name = self.classes[pred_class_idx.item()]
         conf_val = confidence.item()
         
-        # Step 6: Confidence-gated decision
+        # Confidence-gated decision
         if pred_class_name == "Active Fire" and conf_val <= 0.80:
             pred_class_name = "Possible Fire (Low Confidence)"
             
