@@ -43,7 +43,15 @@ if data_source == "Test Set Replay":
 else:
     uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
     if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
+        try:
+            df = pd.read_csv(uploaded_file)
+            required_cols = {'Temperature[C]', 'Humidity[%]', 'TVOC[ppb]', 'eCO2[ppm]', 'PM2.5'}
+            if not required_cols.issubset(set(df.columns)):
+                st.sidebar.error(f"Invalid CSV schema. Missing columns: {required_cols - set(df.columns)}")
+                df = None
+        except Exception as e:
+            st.sidebar.error(f"Failed to parse CSV: {e}")
+            df = None
         
 if df is not None and not df.empty:
     st.subheader("Live Sensor Stream Simulator")

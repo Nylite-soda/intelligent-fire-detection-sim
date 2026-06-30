@@ -7,7 +7,11 @@ from src.model.ann import FireANN
 from src.preprocessing.dwt import process_window
 
 class FireDetector:
-    def __init__(self, model_path="models/fire_ann.pt", scaler_path="models/scaler.pkl"):
+    def __init__(self, model_path=None, scaler_path=None):
+        if model_path is None:
+            model_path = os.environ.get("FIRE_MODEL_PATH", "models/fire_ann.pt")
+        if scaler_path is None:
+            scaler_path = os.environ.get("FIRE_SCALER_PATH", "models/scaler.pkl")
         if not os.path.exists(model_path) or not os.path.exists(scaler_path):
             raise FileNotFoundError("Model or scaler not found. Please run training first.")
             

@@ -37,7 +37,7 @@ def download_data():
         print("Please manually download the dataset from:")
         print("https://www.kaggle.com/datasets/deepcontractor/smoke-detection-dataset")
         print(f"And place the '{CSV_FILENAME}' file in the '{DATA_DIR}' directory.")
-        raise FileNotFoundError("Missing dataset. Please download manually as instructed above.")
+        raise FileNotFoundError(f"Missing dataset due to download failure: {e}") from e
 
 def load_and_clean_data(filepath=CSV_PATH):
     """

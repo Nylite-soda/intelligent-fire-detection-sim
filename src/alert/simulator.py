@@ -1,5 +1,6 @@
 import os
 import datetime
+import logging
 from abc import ABC, abstractmethod
 
 class AlertDispatcher(ABC):
@@ -17,6 +18,15 @@ class MockHardwareAlert(AlertDispatcher):
         os.makedirs(self.log_dir, exist_ok=True)
         self.log_file = os.path.join(self.log_dir, "alerts.log")
         
+        # Thread-safe logger
+        self.logger = logging.getLogger("MockHardwareAlert")
+        self.logger.setLevel(logging.INFO)
+        if not self.logger.handlers:
+            fh = logging.FileHandler(self.log_file)
+            formatter = logging.Formatter('%(message)s')
+            fh.setFormatter(formatter)
+            self.logger.addHandler(fh)
+        
     def dispatch(self, zone_id, confidence, alert_type="Active Fire"):
         timestamp = datetime.datetime.now().isoformat()
         
@@ -24,11 +34,10 @@ class MockHardwareAlert(AlertDispatcher):
         sms_status = "SMS_SENT"
         iot_status = "IOT_ALERT_SENT"
         
-        log_entry = f"[{timestamp}] ZONE:{zone_id} | ALERT:{alert_type} | CONFIDENCE:{confidence:.2f} | {sms_status} | {iot_status}\n"
+        log_entry = f"[{timestamp}] ZONE:{zone_id} | ALERT:{alert_type} | CONFIDENCE:{confidence:.2f} | {sms_status} | {iot_status}"
         
-        # Write to log
-        with open(self.log_file, "a") as f:
-            f.write(log_entry)
+        # Write to log thread-safely
+        self.logger.info(log_entry)
             
         # Console Alert
         print("\n" + "="*50)

@@ -39,8 +39,8 @@ def process_window(window_df, feature_cols, wavelet='db4', level=3):
             dwt_feats = compute_dwt_features(signal, wavelet, level)
             for k, v in dwt_feats.items():
                 window_features[f"{col}_{k}"] = v
-        except Exception:
-            pass
+        except Exception as e:
+            raise ValueError(f"DWT feature extraction failed for column {col}: {e}")
             
     # Include target class if 'Class' is present
     if "Class" in window_df.columns:
