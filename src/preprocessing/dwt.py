@@ -26,7 +26,7 @@ def process_window(window_df, feature_cols, wavelet='db4', level=3):
     window_features = {}
     
     for col in feature_cols:
-        signal = window_df[col].values
+        signal = window_df[col].to_numpy(copy=True)
         
         # Raw aggregations
         window_features[f"{col}_raw_mean"] = np.mean(signal)
@@ -56,6 +56,13 @@ def preprocess_dataframe_into_windows(df, window_size=32, step_size=16, wavelet=
     if df.empty:
         return pd.DataFrame()
         
+    # Step 5: explicitly sort and reset index to recover order if shuffled
+    sort_cols = [c for c in ['UTC', 'CNT'] if c in df.columns]
+    if sort_cols:
+        df = df.sort_values(sort_cols).reset_index(drop=True)
+    else:
+        df = df.reset_index(drop=True)
+        
     # Find where sequence breaks (CNT doesn't strictly increase by 1, or is lower)
     cnt_diff = df['CNT'].diff()
     # Fill NA for the first row to be > 0 so it's not considered a break
@@ -65,7 +72,7 @@ def preprocess_dataframe_into_windows(df, window_size=32, step_size=16, wavelet=
     # To be safe, let's just find drops in CNT or large jumps
     seq_starts = df.index[ (cnt_diff <= 0) | (cnt_diff > 1) ].tolist()
     
-    seq_starts = [df.index[0]] + seq_starts + [df.index[-1] + 1]
+    seq_starts = [0] + seq_starts + [len(df)]
     seq_starts = sorted(list(set(seq_starts)))
     
     feature_cols = [c for c in df.columns if c not in ['CNT', 'Class', 'Fire Alarm']]
@@ -77,7 +84,7 @@ def preprocess_dataframe_into_windows(df, window_size=32, step_size=16, wavelet=
         end_idx = seq_starts[i+1]
         
         # seq_df has contiguous CNT
-        seq_df = df.loc[start_idx:end_idx-1]
+        seq_df = df.iloc[start_idx:end_idx]
         if len(seq_df) < window_size:
             continue
             

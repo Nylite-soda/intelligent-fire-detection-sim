@@ -52,9 +52,16 @@ class FireDetector:
             tensor_feats = torch.tensor(scaled_feats, dtype=torch.float32)
             outputs = self.model(tensor_feats)
             probs = torch.nn.functional.softmax(outputs, dim=1)[0]
-            confidence, pred_class = torch.max(probs, 0)
+            confidence, pred_class_idx = torch.max(probs, 0)
             
-        return self.classes[pred_class.item()], confidence.item()
+        pred_class_name = self.classes[pred_class_idx.item()]
+        conf_val = confidence.item()
+        
+        # Step 6: Confidence-gated decision
+        if pred_class_name == "Active Fire" and conf_val <= 0.80:
+            pred_class_name = "Possible Fire (Low Confidence)"
+            
+        return pred_class_name, conf_val
 
 if __name__ == "__main__":
     print("Inference module ready.")

@@ -72,7 +72,7 @@ if df is not None and not df.empty:
             st.stop()
             
         window_size = 32
-        step_size = 1
+        step_size = 16 # Step 7: aligned with training distribution
         
         # Display logs
         logs = []
@@ -91,6 +91,8 @@ if df is not None and not df.empty:
                 color = "green"
             elif pred_class == "Nuisance":
                 color = "orange"
+            elif "Possible Fire" in pred_class:
+                color = "darkorange"
             else:
                 color = "red"
                 
@@ -106,6 +108,8 @@ if df is not None and not df.empty:
             if pred_class == "Active Fire":
                 alert_system.dispatch(zone_id="Zone-Alpha", confidence=conf, alert_type="Active Fire")
                 logs.insert(0, f"🔥 ALERT DISPATCHED (Conf: {conf*100:.1f}%)")
+            elif "Possible Fire" in pred_class:
+                logs.insert(0, f"⚠️ Possible Fire Logged (Conf: {conf*100:.1f}%)")
                 
             # Keep logs short
             if len(logs) > 5:
