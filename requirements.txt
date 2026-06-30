@@ -1,0 +1,9 @@
+pandas
+numpy
+scikit-learn
+PyWavelets
+torch
+streamlit
+matplotlib
+pytest
+kagglehub
